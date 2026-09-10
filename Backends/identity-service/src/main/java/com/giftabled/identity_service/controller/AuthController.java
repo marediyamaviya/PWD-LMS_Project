@@ -13,51 +13,46 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@CrossOrigin
 @RequestMapping("/auth")
 public class AuthController {
-    private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService;
+        private final AuthenticationManager authenticationManager;
+        private final JwtService jwtService;
 
-    public AuthController(UserService userService,
-                          AuthenticationManager authenticationManager,
-                          JwtService jwtService) {
-        this.userService = userService;
-        this.authenticationManager = authenticationManager;
-        this.jwtService = jwtService;
-    }
+        public AuthController(UserService userService,
+                        AuthenticationManager authenticationManager,
+                        JwtService jwtService) {
+                this.userService = userService;
+                this.authenticationManager = authenticationManager;
+                this.jwtService = jwtService;
+        }
 
-    private final UserService userService;
+        private final UserService userService;
 
+        @PostMapping("/register")
+        public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
+                return userService.registerUser(request);
+        }
 
-    @PostMapping("/register")
-    public AuthResponse register(@Valid @RequestBody RegisterRequest request){
-        return userService.registerUser(request);
-    }
-    @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+        @PostMapping("/login")
+        public LoginResponse login(@Valid @RequestBody LoginRequest request) {
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
+                Authentication authentication = authenticationManager.authenticate(
+                                new UsernamePasswordAuthenticationToken(
+                                                request.getEmail(),
+                                                request.getPassword()));
 
-        String role= authentication.getAuthorities()
-                .stream()
-                .findFirst()
-                .orElseThrow()
-                .getAuthority()
-                .replace("ROLE_","");
+                String role = authentication.getAuthorities()
+                                .stream()
+                                .findFirst()
+                                .orElseThrow()
+                                .getAuthority()
+                                .replace("ROLE_", "");
 
-
-        String token=jwtService.generateToken(request.getEmail(),role);
-        return new LoginResponse(
-                "Login successful",
-                request.getEmail(),
-                role,
-                token
-        );
-    }
+                String token = jwtService.generateToken(request.getEmail(), role);
+                return new LoginResponse(
+                                "Login successful",
+                                request.getEmail(),
+                                role,
+                                token);
+        }
 }
