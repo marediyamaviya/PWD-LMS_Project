@@ -11,12 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
-
 @Configuration
 public class SecurityConfig {
 
@@ -44,25 +38,19 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // Enable CORS
-                .cors(cors -> {})
-
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/register", "/auth/login").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/trainer/**").hasRole("TRAINER")
                         .requestMatchers("/candidate/**").hasRole("CANDIDATE")
                         .requestMatchers("/coordinator").hasRole("COORDINATOR")
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
 
                 .addFilterBefore(
                         jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
 
 }

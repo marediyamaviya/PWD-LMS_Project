@@ -1,0 +1,243 @@
+{
+  "info": {
+    "_postman_id": "assessment-service-quiz-api",
+    "name": "Assessment Service - Quiz API",
+    "description": "Verified against the MySQL-backed API. Run requests 1 through 8 in order. The create quiz and add question requests save IDs automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "courseId",
+      "value": "1"
+    },
+    {
+      "key": "quizId",
+      "value": "1"
+    },
+    {
+      "key": "questionId",
+      "value": "1"
+    },
+    {
+      "key": "correctOptionId",
+      "value": "1"
+    },
+    {
+      "key": "candidateId",
+      "value": "candidate-101"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create quiz",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Java Basics Quiz\",\n  \"description\": \"Basic Java questions\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/courses/{{courseId}}/quizzes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "courses",
+            "{{courseId}}",
+            "quizzes"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('quizId', body.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. List quizzes for course",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/courses/{{courseId}}/quizzes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "courses",
+            "{{courseId}}",
+            "quizzes"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Add question with options",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Which keyword creates a class in Java?\",\n  \"points\": 1,\n  \"options\": [\n    {\n      \"text\": \"class\",\n      \"correct\": true\n    },\n    {\n      \"text\": \"struct\",\n      \"correct\": false\n    },\n    {\n      \"text\": \"object\",\n      \"correct\": false\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/quizzes/{{quizId}}/questions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "quizzes",
+            "{{quizId}}",
+            "questions"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('questionId', body.id);",
+              "const correctOption = body.options.find(option => option.correct === true);",
+              "pm.collectionVariables.set('correctOptionId', correctOption.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Get quiz",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/courses/{{courseId}}/quizzes/{{quizId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "courses",
+            "{{courseId}}",
+            "quizzes",
+            "{{quizId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Submit quiz attempt",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"candidateId\": \"{{candidateId}}\",\n  \"answers\": [\n    {\n      \"questionId\": {{questionId}},\n      \"optionId\": {{correctOptionId}}\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/quizzes/{{quizId}}/attempts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "quizzes",
+            "{{quizId}}",
+            "attempts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. List candidate attempts",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/quizzes/{{quizId}}/attempts?candidateId={{candidateId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "quizzes",
+            "{{quizId}}",
+            "attempts"
+          ],
+          "query": [
+            {
+              "key": "candidateId",
+              "value": "{{candidateId}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Delete question",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{baseUrl}}/api/quizzes/{{quizId}}/questions/{{questionId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "quizzes",
+            "{{quizId}}",
+            "questions",
+            "{{questionId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. Delete quiz",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{baseUrl}}/api/courses/{{courseId}}/quizzes/{{quizId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "courses",
+            "{{courseId}}",
+            "quizzes",
+            "{{quizId}}"
+          ]
+        }
+      }
+    }
+  ]
+}
