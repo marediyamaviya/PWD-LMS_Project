@@ -23,7 +23,7 @@ public class Question {
     @ManyToOne
     private Quiz quiz;
 
-    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL,
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = jakarta.persistence.FetchType.EAGER)
     private final List<Option> options = new ArrayList<>();
 
@@ -44,8 +44,16 @@ public class Question {
         return text;
     }
 
+    public void setText(String text) {
+        this.text = text;
+    }
+
     public Integer getPoints() {
         return points;
+    }
+
+    public void setPoints(Integer points) {
+        this.points = points;
     }
 
     public Quiz getQuiz() {
@@ -58,6 +66,10 @@ public class Question {
 
     public List<Option> getOptions() {
         return options;
+    }
+
+    public void clearOptions() {
+        options.clear();
     }
 
     public void addOption(Option option) {
