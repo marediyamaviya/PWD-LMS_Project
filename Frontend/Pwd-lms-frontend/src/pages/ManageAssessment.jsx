@@ -284,7 +284,6 @@ function ManageAssessment() {
           <h1>Manage Assessments</h1>
           <p>Search quizzes by assessment name, review questions, and manage quiz content.</p>
         </div>
-        <Link className="back-link" to="/assessment">Candidate view</Link>
       </div>
 
       <section className="assessment-card">

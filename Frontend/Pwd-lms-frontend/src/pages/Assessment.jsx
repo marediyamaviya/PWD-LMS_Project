@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import assessmentClient from "../api/AssessmentClient";
 import "./Assessment.css";
 
@@ -16,6 +16,18 @@ function Assessment() {
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  if (role === "ADMIN") {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  if (role === "TRAINER") {
+    return <Navigate to="/trainer/dashboard" replace />;
+  }
+
+  if (role !== "CANDIDATE") {
+    return <Navigate to="/login" replace />;
+  }
 
   const searchQuizzes = async (event) => {
     event.preventDefault();
@@ -112,9 +124,6 @@ function Assessment() {
           <p>Search for an assessment by name and start it while attempts remain.</p>
         </div>
         <div className="action-row">
-          {(role === "ADMIN" || role === "TRAINER") && (
-            <Link className="back-link" to="/assessment/manage">Manage assessments</Link>
-          )}
           <Link className="back-link" to="/login">Log out</Link>
         </div>
       </div>
