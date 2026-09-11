@@ -6,6 +6,7 @@ import com.giftabled.identity_service.entity.User;
 import com.giftabled.identity_service.exception.EmailAlreadyExistsException;
 import com.giftabled.identity_service.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.giftabled.identity_service.dto.UserResponse;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -38,5 +39,19 @@ public class UserService {
 
 
 
+    }
+    public UserResponse getUserByEmail(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found with email: " + email)
+                );
+
+        return new UserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRole().name()
+        );
     }
 }
