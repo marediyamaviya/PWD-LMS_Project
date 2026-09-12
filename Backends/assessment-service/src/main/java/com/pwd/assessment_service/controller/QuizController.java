@@ -47,6 +47,11 @@ public class QuizController {
                 : assessmentName != null ? assessmentName : title);
     }
 
+    @GetMapping("/course/{courseId}")
+    public List<QuizSummaryResponse> listQuizzesByCourse(@PathVariable Long courseId) {
+        return assessmentService.listQuizzes(courseId);
+    }
+
     @PostMapping
     public ResponseEntity<QuizSummaryResponse> createQuiz(@RequestBody QuizRequest request) {
         return ResponseEntity.ok(assessmentService.createQuiz(request));

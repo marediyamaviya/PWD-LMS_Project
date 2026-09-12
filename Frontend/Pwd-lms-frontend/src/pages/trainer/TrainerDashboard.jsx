@@ -1,8 +1,50 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import courseApiClient from "../../api/courseApiClient";
+import apiClient from "../../api/ApiClient";
+import assessmentClient from "../../api/AssessmentClient";
 
 function TrainerDashboard() {
   const email = localStorage.getItem("email");
   const role = localStorage.getItem("role");
+
+  const [stats, setStats] = useState({
+    myCourses: 0,
+    candidates: 0,
+    assessments: 0,
+  });
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const [coursesResponse, candidatesResponse] = await Promise.all([
+          courseApiClient.get("courses/my"),
+          apiClient.get("users/role/CANDIDATE"),
+        ]);
+
+        const courses = coursesResponse.data || [];
+
+        const quizCounts = await Promise.all(
+          courses.map((course) =>
+            assessmentClient
+              .get(`/quizzes/course/${course.id}`)
+              .then((response) => response.data.length)
+              .catch(() => 0),
+          ),
+        );
+
+        setStats({
+          myCourses: courses.length,
+          candidates: (candidatesResponse.data || []).length,
+          assessments: quizCounts.reduce((sum, count) => sum + count, 0),
+        });
+      } catch (error) {
+        console.error("Error loading trainer dashboard stats:", error);
+      }
+    };
+
+    loadStats();
+  }, []);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -20,8 +62,16 @@ function TrainerDashboard() {
             <small className="text-secondary">TRAINER</small>
           </div>
 
-          <div className="mb-3">Dashboard</div>
+          {/* <div className="mb-3">
+            Dashboard
+          </div>*/}
 
+          <Link
+            to="/trainer/courses"
+            className="d-block mb-3 text-white text-decoration-none"
+          >
+            My Courses
+          </Link>
           <div className="mb-3">
             <Link
               className="text-white text-decoration-none"
@@ -30,10 +80,16 @@ function TrainerDashboard() {
               Manage Assessments
             </Link>
           </div>
+          <Link
+            to="/trainer/candidates"
+            className="d-block mb-3 text-white text-decoration-none"
+          >
+            Candidates
+          </Link>
 
-          <div className="mb-3">Candidates</div>
-
-          {/*<div className="mb-3">Profile</div>*/}
+          {/*<div className="mb-3">
+            Profile
+          </div>*/}
 
           <button className="btn btn-danger mt-4" onClick={handleLogout}>
             Logout
@@ -56,7 +112,7 @@ function TrainerDashboard() {
                 <div className="card-body">
                   <h6 className="text-muted">My Courses</h6>
 
-                  <h2>0</h2>
+                  <h2>{stats.myCourses}</h2>
                 </div>
               </div>
             </div>
@@ -66,7 +122,7 @@ function TrainerDashboard() {
                 <div className="card-body">
                   <h6 className="text-muted">Candidates</h6>
 
-                  <h2>0</h2>
+                  <h2>{stats.candidates}</h2>
                 </div>
               </div>
             </div>
@@ -74,9 +130,9 @@ function TrainerDashboard() {
             <div className="col-md-4 mb-4">
               <div className="card shadow-sm">
                 <div className="card-body">
-                  <h6 className="text-muted">Pending Tasks</h6>
+                  <h6 className="text-muted">Assessments</h6>
 
-                  <h2>0</h2>
+                  <h2>{stats.assessments}</h2>
                 </div>
               </div>
             </div>

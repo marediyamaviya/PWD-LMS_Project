@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import assessmentClient from "../api/AssessmentClient";
 import "./Assessment.css";
 
@@ -8,14 +8,52 @@ const MAX_ATTEMPTS = 3;
 function Assessment() {
   const role = localStorage.getItem("role");
   const candidateId = localStorage.getItem("email");
+  const [searchParams] = useSearchParams();
+  const urlQuizId = searchParams.get("quizId");
+
   const [search, setSearch] = useState("");
   const [quizzes, setQuizzes] = useState([]);
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({});
   const [attempts, setAttempts] = useState([]);
   const [result, setResult] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const startQuiz = async (quizId) => {
+    setLoading(true);
+    setMessage("");
+    setResult(null);
+    setSubmitted(false);
+    try {
+      const [quizResponse, attemptsResponse] = await Promise.all([
+        assessmentClient.get(`/quizzes/${quizId}`),
+        assessmentClient.get(`/quizzes/${quizId}/attempts`, {
+          params: { candidateId },
+        }),
+      ]);
+      const loadedAttempts = attemptsResponse.data;
+      setAttempts(loadedAttempts);
+      setQuiz(quizResponse.data);
+      setAnswers({});
+      if (loadedAttempts.length >= MAX_ATTEMPTS) {
+        setResult(loadedAttempts[0]);
+        setMessage("You have used all attempts for this assessment.");
+      }
+    } catch (error) {
+      setQuiz(null);
+      setMessage(error.response?.data?.message || "Quiz could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (urlQuizId) {
+      startQuiz(Number(urlQuizId));
+    }
+  }, [urlQuizId]);
 
   if (role === "ADMIN") {
     return <Navigate to="/admin/dashboard" replace />;
@@ -50,33 +88,6 @@ function Assessment() {
     }
   };
 
-  const startQuiz = async (quizId) => {
-    setLoading(true);
-    setMessage("");
-    setResult(null);
-    try {
-      const [quizResponse, attemptsResponse] = await Promise.all([
-        assessmentClient.get(`/quizzes/${quizId}`),
-        assessmentClient.get(`/quizzes/${quizId}/attempts`, {
-          params: { candidateId },
-        }),
-      ]);
-      const loadedAttempts = attemptsResponse.data;
-      setAttempts(loadedAttempts);
-      setQuiz(quizResponse.data);
-      setAnswers({});
-      if (loadedAttempts.length >= MAX_ATTEMPTS) {
-        setResult(loadedAttempts[0]);
-        setMessage("You have used all attempts for this assessment.");
-      }
-    } catch (error) {
-      setQuiz(null);
-      setMessage(error.response?.data?.message || "Quiz could not be loaded.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const chooseAnswer = (questionId, optionId) => {
     setAnswers({ ...answers, [questionId]: optionId });
   };
@@ -106,6 +117,7 @@ function Assessment() {
       );
       setResult(response.data);
       setAttempts([response.data, ...attempts]);
+      setSubmitted(true);
     } catch (error) {
       setMessage(error.response?.data?.message || "Assessment could not be submitted.");
     } finally {
@@ -120,31 +132,34 @@ function Assessment() {
       <div className="assessment-header">
         <div>
           <p className="assessment-label">PWD LMS</p>
-          <h1>Assessments</h1>
-          <p>Search for an assessment by name and start it while attempts remain.</p>
+          <h1>{quiz ? quiz.title : "Assessments"}</h1>
+          <p>{quiz ? (quiz.description || "Answer all questions below.") : "Start a quiz from your courses or quizzes."}</p>
         </div>
         <div className="action-row">
-          <Link className="back-link" to="/login">Log out</Link>
+          <Link className="back-link" to="/candidate/dashboard">← Dashboard</Link>
+          <Link className="back-link" to="/candidate/quizzes">← My Quizzes</Link>
         </div>
       </div>
 
-      <section className="assessment-card quiz-loader">
-        <h2>Find an assessment</h2>
-        <form className="quiz-id-form" onSubmit={searchQuizzes}>
-          <label htmlFor="assessmentSearch">Assessment name</label>
-          <input
-            id="assessmentSearch"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Example: Java basics"
-          />
-          <button type="submit" disabled={loading}>{loading ? "Searching..." : "Search"}</button>
-        </form>
-      </section>
+      {!urlQuizId && (
+        <section className="assessment-card quiz-loader">
+          <h2>Find an assessment</h2>
+          <form className="quiz-id-form" onSubmit={searchQuizzes}>
+            <label htmlFor="assessmentSearch">Assessment name</label>
+            <input
+              id="assessmentSearch"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Example: Java basics"
+            />
+            <button type="submit" disabled={loading}>{loading ? "Searching..." : "Search"}</button>
+          </form>
+        </section>
+      )}
 
       {message && <p className="assessment-message">{message}</p>}
 
-      {quizzes.length > 0 && (
+      {!urlQuizId && quizzes.length > 0 && (
         <section className="assessment-card">
           <h2>Available assessments</h2>
           <div className="quiz-list">
@@ -163,7 +178,13 @@ function Assessment() {
         </section>
       )}
 
-      {quiz && canStart && (
+      {loading && urlQuizId && (
+        <section className="assessment-card quiz-loader">
+          <p className="form-help">Loading quiz...</p>
+        </section>
+      )}
+
+      {quiz && canStart && !submitted && (
         <form className="assessment-form" onSubmit={submitAssessment}>
           <section className="assessment-card quiz-heading">
             <p className="assessment-label">Quiz {quiz.id}</p>
@@ -211,6 +232,15 @@ function Assessment() {
           <h2>Assessment complete</h2>
           <p>Your score is:</p>
           <strong>{result.score} / {result.totalPoints}</strong>
+        </section>
+      )}
+
+      {result && (
+        <section className="assessment-card">
+          <div className="action-row">
+            <Link className="back-link" to="/candidate/dashboard">← Dashboard</Link>
+            <Link className="back-link" to="/candidate/quizzes">← My Quizzes</Link>
+          </div>
         </section>
       )}
     </main>
