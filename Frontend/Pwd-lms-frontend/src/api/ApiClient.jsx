@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || "http://localhost:9000"}/api/identity/`,
+  baseURL: `${import.meta.env.VITE_API_URL || "https://lms-api-gateway-c51u.onrender.com"}/api/identity/`,
 });
 
 apiClient.interceptors.request.use((config) => {

@@ -13,7 +13,7 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    @Value("${FRONTEND_ORIGINS:http://localhost:5173}")
+    @Value("${FRONTEND_ORIGINS:http://localhost:5173,https://pwd-lms-frontend.onrender.com}")
     private String frontendOrigins;
 
     @Bean
