@@ -1,0 +1,27 @@
+name: Keep Render Services Awake
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping-render-services:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping all Render services
+        run: |
+          for url in \
+            "https://lms-service-registry.onrender.com/" \
+            "https://lms-identity-service.onrender.com/" \
+            "https://lms-course-service.onrender.com/" \
+            "https://lms-assessment-service.onrender.com/" \
+            "https://lms-api-gateway-c51u.onrender.com/" \
+          ; do
+            echo "Pinging $url"
+            curl -sS -o /dev/null -w "  HTTP %{http_code}\n" \
+              --retry 3 --retry-connrefused --max-time 90 "$url" || true
+          done
