@@ -1,0 +1,6 @@
+#FileLock
+#Fri Sep 11 08:28:59 IST 2026
+hostName=DELL-5490
+id=1a08c13140e68f0f05ac0f8165ec497af9e97a5d5a2
+method=file
+server=192.168.1.9\:29550

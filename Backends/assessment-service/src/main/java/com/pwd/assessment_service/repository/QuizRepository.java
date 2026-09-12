@@ -10,4 +10,6 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
     Optional<Quiz> findByIdAndCourseId(Long id, Long courseId);
 
+    List<Quiz> findByTitleContainingIgnoreCaseOrderById(String title);
+
 }

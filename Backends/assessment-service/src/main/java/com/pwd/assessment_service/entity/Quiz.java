@@ -21,7 +21,7 @@ public class Quiz {
 
     private Long courseId;
 
-    @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL,
+    @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = jakarta.persistence.FetchType.EAGER)
     private final List<Question> questions = new ArrayList<>();
 
@@ -46,12 +46,24 @@ public class Quiz {
         return title;
     }
 
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
     public String getDescription() {
         return description;
     }
 
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public Long getCourseId() {
         return courseId;
+    }
+
+    public void setCourseId(Long courseId) {
+        this.courseId = courseId;
     }
 
     public List<Question> getQuestions() {
@@ -65,5 +77,10 @@ public class Quiz {
     public void addQuestion(Question question) {
         questions.add(question);
         question.setQuiz(this);
+    }
+
+    public void removeQuestion(Question question) {
+        questions.remove(question);
+        question.setQuiz(null);
     }
 }

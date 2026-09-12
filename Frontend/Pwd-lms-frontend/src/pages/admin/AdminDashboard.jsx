@@ -1,6 +1,13 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function AdminDashboard() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div className="container-fluid min-vh-100 bg-light">
       {/* Navbar */}
@@ -13,7 +20,13 @@ function AdminDashboard() {
         <div className="d-flex align-items-center gap-3">
           <span className="fw-semibold">Admin</span>
 
-          <button className="btn btn-outline-danger btn-sm">Logout</button>
+          <button
+            type="button"
+            className="btn btn-outline-danger btn-sm"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
         </div>
       </nav>
 
@@ -53,7 +66,28 @@ function AdminDashboard() {
             </div>
           </div>
 
-          {/* Create Coordinator */}
+          {/* Candidate Management */}
+          <div className="col-md-6">
+            <div className="card border-0 shadow-sm h-100">
+              <div className="card-body p-4">
+                <div className="mb-3">
+                  <span className="fs-1">👤</span>
+                </div>
+
+                <h4 className="fw-bold">Candidate Management</h4>
+
+                <p className="text-muted">
+                  View all the candidates registered on the platform.
+                </p>
+
+                <Link to="/admin/candidates" className="btn btn-primary">
+                  View Candidates
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Create Coordinator
           <div className="col-md-6">
             <div className="card border-0 shadow-sm h-100">
               <div className="card-body p-4">
@@ -76,8 +110,18 @@ function AdminDashboard() {
               </div>
             </div>
           </div>
+          */}
         </div>
 
+        <h5 className="fw-bold mb-3">Course Management</h5>
+
+        <div className="card border-0 shadow-sm mb-5">
+          <div className="card-body p-4">
+            <h4 className="fw-bold">Courses</h4>
+            <p className="text-muted">Create, update, and manage LMS courses.</p>
+            <Link to="/admin/courses" className="btn btn-primary">Manage Courses</Link>
+          </div>
+        </div>
         <h5 className="fw-bold mb-3">Assessment Management</h5>
 
         <div className="card border-0 shadow-sm mb-5">
@@ -94,9 +138,9 @@ function AdminDashboard() {
         </div>
 
         {/* Attendance Management */}
-        <h5 className="fw-bold mb-3">Attendance Management</h5>
+        {/*<h5 className="fw-bold mb-3">Attendance Management</h5>*/}
 
-        <div className="row">
+        {/*<div className="row">
           <div className="col-12">
             <div className="card border-0 shadow-sm">
               <div className="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center">
@@ -118,7 +162,7 @@ function AdminDashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </div>*/}
       </div>
     </div>
   );

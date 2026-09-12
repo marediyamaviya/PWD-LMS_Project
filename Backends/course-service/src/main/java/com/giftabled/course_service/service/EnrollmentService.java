@@ -30,19 +30,12 @@ public class EnrollmentService {
             Long candidateId
     ) {
 
-        Course course = courseRepository.findById(courseId)
+        courseRepository.findById(courseId)
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "Course not found with id: " + courseId
                         )
                 );
-
-        if (!"PUBLISHED".equalsIgnoreCase(course.getStatus())) {
-
-            throw new RuntimeException(
-                    "Candidate can only enroll in published courses"
-            );
-        }
 
         if (enrollmentRepository
                 .findByCourseIdAndCandidateId(

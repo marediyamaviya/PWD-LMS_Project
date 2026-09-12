@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import apiClient from "../../api/apiClient";
 
 function CreateTrainer() {
@@ -57,9 +57,20 @@ function CreateTrainer() {
           PWD LMS
         </span>
 
-        <span className="fw-semibold">
-          Admin Panel
-        </span>
+        <div className="d-flex align-items-center gap-3">
+
+          <Link
+            to="/admin/dashboard"
+            className="btn btn-outline-primary btn-sm"
+          >
+            Dashboard
+          </Link>
+
+          <span className="fw-semibold">
+            Admin Panel
+          </span>
+
+        </div>
 
       </nav>
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import assessmentClient from "../api/AssessmentClient";
 import courseApiClient from "../api/courseApiClient";
 import "./Assessment.css";
@@ -11,13 +11,13 @@ const newOptions = () => [
   { text: "", correct: false },
 ];
 
-function ManageAssessment() {
+function CourseQuizzes() {
+  const { courseId } = useParams();
   const role = localStorage.getItem("role");
   const isAdmin = role === "ADMIN";
   const canManageQuestions = isAdmin || role === "TRAINER";
-  const [search, setSearch] = useState("");
-  const [courseId, setCourseId] = useState("");
-  const [courseOptions, setCourseOptions] = useState([]);
+
+  const [course, setCourse] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
   const [selectedQuizId, setSelectedQuizId] = useState("");
   const [quiz, setQuiz] = useState(null);
@@ -37,37 +37,41 @@ function ManageAssessment() {
   const showError = (error, fallback) =>
     setMessage(error.response?.data?.message || fallback);
 
-  useEffect(() => {
-    const loadCourses = async () => {
-      try {
-        const endpoint = isAdmin ? "courses" : "courses/my";
-        const response = await courseApiClient.get(endpoint);
-        setCourseOptions(response.data || []);
-      } catch (error) {
-        setCourseOptions([]);
-      }
-    };
-    loadCourses();
-  }, [isAdmin]);
+  const backLink =
+    role === "TRAINER"
+      ? { to: "/trainer/courses", label: "← My courses" }
+      : { to: "/admin/courses", label: "← Course management" };
 
-  const loadQuizzes = async (event) => {
-    event.preventDefault();
+  const loadCourse = async () => {
+    try {
+      const response = await courseApiClient.get(`courses/${courseId}`);
+      setCourse(response.data);
+    } catch (error) {
+      setCourse(null);
+      showError(error, "Course could not be loaded.");
+    }
+  };
+
+  const loadQuizzes = async () => {
     setLoading(true);
     setMessage("");
     try {
-      const response = await assessmentClient.get("/quizzes/search", {
-        params: { assessmentName: search },
-      });
+      const response = await assessmentClient.get(`/quizzes/course/${courseId}`);
       setQuizzes(response.data);
       setQuiz(null);
       setAttempts([]);
       setSelectedQuizId("");
     } catch (error) {
-      showError(error, "Assessments could not be loaded.");
+      showError(error, "Quizzes for this course could not be loaded.");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadCourse();
+    loadQuizzes();
+  }, [courseId]);
 
   const createQuiz = async (event) => {
     event.preventDefault();
@@ -75,22 +79,17 @@ function ManageAssessment() {
       setMessage("Quiz title is required.");
       return;
     }
-    if (!courseId) {
-      setMessage("Please select a course for this quiz (mandatory).");
-      return;
-    }
     setLoading(true);
     try {
-      const response = await assessmentClient.post("/quizzes", {
+      await assessmentClient.post("/quizzes", {
         title: title.trim(),
         description,
         courseId: Number(courseId),
       });
-      setQuizzes((current) => [...current, response.data]);
       setTitle("");
       setDescription("");
-      setCourseId("");
       setCreatingQuiz(false);
+      await loadQuizzes();
       setMessage("Quiz created successfully.");
     } catch (error) {
       showError(error, "Quiz could not be created.");
@@ -141,7 +140,7 @@ function ManageAssessment() {
       const response = await assessmentClient.put(`/quizzes/${quiz.id}`, {
         title: quiz.title,
         description: quiz.description,
-        courseId: quiz.courseId,
+        courseId: Number(courseId),
       });
       setQuiz({
         ...quiz,
@@ -159,16 +158,18 @@ function ManageAssessment() {
     }
   };
 
-  const updateOption = (index, text, target = options, setter = setOptions) => {
-    setter(target.map((option, optionIndex) =>
-      optionIndex === index ? { ...option, text } : option));
+  const updateOption = (index, text) => {
+    setOptions((current) =>
+      current.map((option, optionIndex) =>
+        optionIndex === index ? { ...option, text } : option));
   };
 
-  const chooseCorrect = (index, target = options, setter = setOptions) => {
-    setter(target.map((option, optionIndex) => ({
-      ...option,
-      correct: optionIndex === index,
-    })));
+  const chooseCorrect = (index) => {
+    setOptions((current) =>
+      current.map((option, optionIndex) => ({
+        ...option,
+        correct: optionIndex === index,
+      })));
   };
 
   const addOption = () => {
@@ -268,7 +269,6 @@ function ManageAssessment() {
       setMessage("Select a quiz question before deleting.");
       return;
     }
-
     setLoading(true);
     setMessage("Deleting question...");
     try {
@@ -284,24 +284,13 @@ function ManageAssessment() {
     }
   };
 
-  if (role !== "ADMIN" && role !== "TRAINER") {
-    return (
-      <main className="assessment-page">
-        <section className="assessment-card">
-          <h1>Trainer and admin access only</h1>
-          <Link className="back-link" to="/assessment">Go to assessments</Link>
-        </section>
-      </main>
-    );
-  }
-
   return (
     <main className="assessment-page">
       <div className="assessment-header">
         <div>
           <p className="assessment-label">PWD LMS · {role}</p>
-          <h1>Manage Assessments</h1>
-          <p>Search quizzes by assessment name, review questions, and manage quiz content.</p>
+          <h1>{course ? course.title : "Course quizzes"}</h1>
+          <p>{course ? course.description || "No description provided." : "Manage the quizzes for this course."}</p>
         </div>
         <div className="action-row">
           <Link
@@ -310,46 +299,39 @@ function ManageAssessment() {
           >
             ← {role === "ADMIN" ? "Admin" : "Trainer"} Dashboard
           </Link>
+          <Link className="back-link" to={backLink.to}>{backLink.label}</Link>
         </div>
       </div>
-
-      <section className="assessment-card">
-        <h2>Find assessments</h2>
-        <form className="quiz-id-form" onSubmit={loadQuizzes}>
-          <label htmlFor="assessmentSearch">Assessment name</label>
-          <input
-            id="assessmentSearch"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search all quizzes"
-          />
-          <button type="submit" disabled={loading}>{loading ? "Searching..." : "Search"}</button>
-        </form>
-        <button
-          className="create-quiz-button"
-          type="button"
-          onClick={() => {
-            setTitle("");
-            setDescription("");
-            setCourseId("");
-            setCreatingQuiz(true);
-          }}
-        >
-          Create new quiz
-        </button>
-      </section>
 
       {message && <p className="assessment-message">{message}</p>}
 
       <section className="assessment-card">
-        <h2>Search results</h2>
-        {quizzes.length === 0 && <p>No assessments found. Search by name to load quizzes.</p>}
+        <div className="quiz-detail-header">
+          <div>
+            <h2>Quizzes</h2>
+            <p>{quizzes.length === 0 ? "No quizzes have been created for this course yet." : `${quizzes.length} quiz${quizzes.length === 1 ? "" : "zes"} for this course.`}</p>
+          </div>
+          <button
+            className="create-quiz-button"
+            type="button"
+            onClick={() => {
+              setTitle("");
+              setDescription("");
+              setCreatingQuiz(true);
+            }}
+          >
+            Create new quiz
+          </button>
+        </div>
+
+        {loading && <p className="form-help">Loading quizzes...</p>}
+
         <div className="quiz-list">
           {quizzes.map((item) => (
             <div className="quiz-list-item" key={item.id}>
               <div>
                 <strong>{item.title}</strong>
-                <span>{item.questionCount} questions{item.courseId ? ` · ${courseOptions.find((course) => course.id === item.courseId)?.title || `Course ${item.courseId}`}` : ""}</span>
+                <span>{item.questionCount} questions</span>
               </div>
               <div className="action-row">
                 <button type="button" onClick={() => openQuiz(item.id)}>View</button>
@@ -409,35 +391,33 @@ function ManageAssessment() {
           </section>
 
           {canManageQuestions && (
-            <>
-              <section className="assessment-card">
-                <h2>Add question</h2>
-                <form className="management-form" onSubmit={addQuestion}>
-                  <label htmlFor="questionText">Question</label>
-                  <textarea id="questionText" value={questionText} onChange={(event) => setQuestionText(event.target.value)} />
-                  <label htmlFor="points">Points</label>
-                  <input id="points" type="number" min="1" value={points} onChange={(event) => setPoints(event.target.value)} />
-                  {options.map((option, index) => (
-                    <div className="option-editor" key={index}>
-                      <input value={option.text} onChange={(event) => updateOption(index, event.target.value)} placeholder={`Option ${index + 1}`} />
-                      <label><input type="radio" name="newCorrectOption" checked={option.correct} onChange={() => chooseCorrect(index)} /> Correct</label>
-                      <button
-                        className="secondary-button danger-button"
-                        type="button"
-                        onClick={() => removeOption(index)}
-                        disabled={options.length <= 2}
-                      >
-                        Remove option
-                      </button>
-                    </div>
-                  ))}
-                  <button className="secondary-button" type="button" onClick={addOption}>
-                    Add option
-                  </button>
-                  <button type="submit">Add Question</button>
-                </form>
-              </section>
-            </>
+            <section className="assessment-card">
+              <h2>Add question</h2>
+              <form className="management-form" onSubmit={addQuestion}>
+                <label htmlFor="questionText">Question</label>
+                <textarea id="questionText" value={questionText} onChange={(event) => setQuestionText(event.target.value)} />
+                <label htmlFor="points">Points</label>
+                <input id="points" type="number" min="1" value={points} onChange={(event) => setPoints(event.target.value)} />
+                {options.map((option, index) => (
+                  <div className="option-editor" key={index}>
+                    <input value={option.text} onChange={(event) => updateOption(index, event.target.value)} placeholder={`Option ${index + 1}`} />
+                    <label><input type="radio" name="newCorrectOption" checked={option.correct} onChange={() => chooseCorrect(index)} /> Correct</label>
+                    <button
+                      className="secondary-button danger-button"
+                      type="button"
+                      onClick={() => removeOption(index)}
+                      disabled={options.length <= 2}
+                    >
+                      Remove option
+                    </button>
+                  </div>
+                ))}
+                <button className="secondary-button" type="button" onClick={addOption}>
+                  Add option
+                </button>
+                <button type="submit">Add Question</button>
+              </form>
+            </section>
           )}
 
           <section className="assessment-card">
@@ -502,19 +482,12 @@ function ManageAssessment() {
                 onChange={(event) => setDescription(event.target.value)}
               />
               <label htmlFor="newQuizCourseId">Course (required)</label>
-              <select
+              <input
                 id="newQuizCourseId"
-                value={courseId}
-                onChange={(event) => setCourseId(event.target.value)}
-                required
-              >
-                <option value="">Select a course</option>
-                {courseOptions.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.title}
-                  </option>
-                ))}
-              </select>
+                value={course ? course.title : `Course ${courseId}`}
+                readOnly
+                disabled
+              />
               <div className="modal-actions">
                 <button className="secondary-button" type="button" onClick={() => setCreatingQuiz(false)}>
                   Cancel
@@ -568,4 +541,4 @@ function ManageAssessment() {
   );
 }
 
-export default ManageAssessment;
+export default CourseQuizzes;

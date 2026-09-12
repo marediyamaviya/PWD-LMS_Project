@@ -23,7 +23,10 @@ import com.pwd.assessment_service.repository.QuizRepository;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AssessmentService {
@@ -42,12 +45,28 @@ public class AssessmentService {
     }
 
     public QuizSummaryResponse createQuiz(Long courseId, QuizRequest request) {
-        Quiz quiz = new Quiz(request.title().trim(), request.description(), courseId);
+        if (request.title() == null || request.title().isBlank()) {
+            throw new BadRequestException("Quiz title is required");
+        }
+        Long actualCourseId = courseId == null ? request.courseId() : courseId;
+        Quiz quiz = new Quiz(request.title().trim(), request.description(), actualCourseId);
         return toSummary(quizRepository.save(quiz));
+    }
+
+    public QuizSummaryResponse createQuiz(QuizRequest request) {
+        return createQuiz(request.courseId(), request);
     }
 
     public List<QuizSummaryResponse> listQuizzes(Long courseId) {
         return quizRepository.findByCourseIdOrderById(courseId).stream()
+                .map(this::toSummary).toList();
+    }
+
+    public List<QuizSummaryResponse> searchQuizzes(String name) {
+        String search = name == null ? "" : name.trim();
+        return (search.isEmpty()
+                ? quizRepository.findAll()
+                : quizRepository.findByTitleContainingIgnoreCaseOrderById(search)).stream()
                 .map(this::toSummary).toList();
     }
 
@@ -72,9 +91,25 @@ public class AssessmentService {
         quizRepository.delete(findQuiz(quizId));
     }
 
+    public QuizSummaryResponse updateQuiz(Long quizId, QuizRequest request) {
+        Quiz quiz = findQuiz(quizId);
+        if (request.title() == null || request.title().isBlank()) {
+            throw new BadRequestException("Quiz title is required");
+        }
+        quiz.setTitle(request.title().trim());
+        quiz.setDescription(request.description());
+        if (request.courseId() != null) {
+            quiz.setCourseId(request.courseId());
+        }
+        return toSummary(quizRepository.save(quiz));
+    }
+
     public QuestionResponse addQuestion(Long quizId, QuestionRequest request) {
         Quiz quiz = findQuiz(quizId);
         validateOptions(request.options());
+        if (request.text() == null || request.text().isBlank()) {
+            throw new BadRequestException("Question text is required");
+        }
         int points = request.points() == null ? 1 : request.points();
         Question question = new Question(request.text().trim(), points, quiz);
         for (OptionRequest optionRequest : request.options()) {
@@ -85,17 +120,42 @@ public class AssessmentService {
         return toQuestionResponse(questionRepository.save(question));
     }
 
+    @Transactional
     public void deleteQuestion(Long quizId, Long questionId) {
         Question question = questionRepository.findByIdAndQuizId(questionId, quizId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Question " + questionId + " was not found for quiz " + quizId));
+        question.getQuiz().removeQuestion(question);
         questionRepository.delete(question);
+    }
+
+    public QuestionResponse updateQuestion(Long quizId, Long questionId, QuestionRequest request) {
+        Question question = questionRepository.findByIdAndQuizId(questionId, quizId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Question " + questionId + " was not found for quiz " + quizId));
+        validateOptions(request.options());
+        if (request.text() == null || request.text().isBlank()) {
+            throw new BadRequestException("Question text is required");
+        }
+        question.setText(request.text().trim());
+        question.setPoints(request.points() == null ? 1 : request.points());
+        question.clearOptions();
+        for (OptionRequest optionRequest : request.options()) {
+            question.addOption(new Option(optionRequest.text().trim(), optionRequest.correct(),
+                    question));
+        }
+        return toQuestionResponse(questionRepository.save(question));
     }
 
     public AttemptResponse submitAttempt(Long quizId, SubmitAttemptRequest request) {
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new ResourceNotFoundException("Quiz " + quizId + " was not found"));
-        if (attemptRepository.countByQuizIdAndCandidateId(quizId, request.candidateId().trim())
+        String candidateId = isCandidate() ? currentUsername()
+                : request.candidateId() == null ? "" : request.candidateId().trim();
+        if (candidateId.isBlank()) {
+            throw new BadRequestException("Candidate ID is required");
+        }
+        if (attemptRepository.countByQuizIdAndCandidateId(quizId, candidateId)
                 >= MAX_ATTEMPTS) {
             throw new MaxAttemptsExceededException(
                     "Candidate has already used the maximum of 3 attempts for this quiz");
@@ -108,8 +168,14 @@ public class AssessmentService {
         if (questions.isEmpty()) {
             throw new BadRequestException("A quiz must contain at least one question");
         }
+        if (request.answers() == null) {
+            throw new BadRequestException("Answers are required");
+        }
         Map<Long, AnswerSubmission> submissions = new HashMap<>();
         for (AnswerSubmission answer : request.answers()) {
+            if (answer == null || answer.questionId() == null || answer.optionId() == null) {
+                throw new BadRequestException("Each answer must include a question and option");
+            }
             if (submissions.put(answer.questionId(), answer) != null) {
                 throw new BadRequestException("Each question may only be answered once");
             }
@@ -120,7 +186,7 @@ public class AssessmentService {
 
         int totalPoints = questions.values().stream().mapToInt(Question::getPoints).sum();
         int score = 0;
-        QuizAttempt attempt = new QuizAttempt(request.candidateId().trim(), quiz, 0, totalPoints);
+        QuizAttempt attempt = new QuizAttempt(candidateId, quiz, 0, totalPoints);
         for (Question question : questions.values()) {
             AnswerSubmission submission = submissions.get(question.getId());
             Option selected = question.getOptions().stream()
@@ -140,6 +206,9 @@ public class AssessmentService {
 
     public List<AttemptResponse> getAttempts(Long quizId, String candidateId) {
         findQuiz(quizId);
+        if (isCandidate()) {
+            candidateId = currentUsername();
+        }
         List<QuizAttempt> attempts = candidateId == null || candidateId.isBlank()
                 ? attemptRepository.findByQuizIdOrderBySubmittedAtDesc(quizId)
                 : attemptRepository.findByQuizIdAndCandidateIdOrderBySubmittedAtDesc(
@@ -159,6 +228,11 @@ public class AssessmentService {
     }
 
     private void validateOptions(List<OptionRequest> options) {
+        if (options == null || options.size() < 2
+                || options.stream().anyMatch(option -> option == null
+                        || option.text() == null || option.text().isBlank())) {
+            throw new BadRequestException("A question must have at least two non-empty options");
+        }
         long correctCount = options.stream().filter(OptionRequest::correct).count();
         if (correctCount != 1) {
             throw new BadRequestException("A question must have exactly one correct option");
@@ -173,7 +247,7 @@ public class AssessmentService {
     private QuizResponse toQuizResponse(Quiz quiz) {
         return new QuizResponse(quiz.getId(), quiz.getTitle(), quiz.getDescription(),
                 quiz.getCourseId(), quiz.getQuestions().stream()
-                        .map(question -> toQuestionResponse(question, false)).toList());
+                        .map(question -> toQuestionResponse(question, isStaff())).toList());
     }
 
     private QuestionResponse toQuestionResponse(Question question) {
@@ -191,6 +265,24 @@ public class AssessmentService {
         return new AttemptResponse(attempt.getId(), attempt.getQuiz().getId(),
                 attempt.getCandidateId(), attempt.getScore(), attempt.getTotalPoints(),
                 attempt.getSubmittedAt());
+    }
+
+    private boolean isStaff() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")
+                        || authority.getAuthority().equals("ROLE_TRAINER"));
+    }
+
+    private boolean isCandidate() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_CANDIDATE"));
+    }
+
+    private String currentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication == null ? "" : authentication.getName();
     }
 
 }
