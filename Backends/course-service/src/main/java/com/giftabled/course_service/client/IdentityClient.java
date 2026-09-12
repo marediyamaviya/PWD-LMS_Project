@@ -4,7 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "IDENTITY-SERVICE")
+@FeignClient(name = "IDENTITY-SERVICE", url = "${AUTH_SERVICE_URL:http://localhost:8081}")
 public interface IdentityClient {
 
     @GetMapping("/users/{id}")

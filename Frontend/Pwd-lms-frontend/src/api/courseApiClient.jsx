@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const courseApiClient = axios.create({
-  baseURL: "http://localhost:9000/api/course/",
+  baseURL: `${import.meta.env.VITE_API_URL || "http://localhost:9000"}/api/course/`,
 });
 
 courseApiClient.interceptors.request.use(

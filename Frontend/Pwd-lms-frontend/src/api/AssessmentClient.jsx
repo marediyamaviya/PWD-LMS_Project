@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const assessmentClient = axios.create({
-  baseURL: "http://localhost:9000/api/assessment/",
+  baseURL: `${import.meta.env.VITE_API_URL || "http://localhost:9000"}/api/assessment/`,
 });
 
 assessmentClient.interceptors.request.use((config) => {
